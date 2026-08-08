@@ -1,0 +1,102 @@
+#separator:tab
+#html:false
+What are the 3 layers people mistakenly collapse into "the database" in Spring persistence?	JPA (spec/interfaces only), Hibernate (implementation/ORM), JDBC driver (wire protocol over TCP).
+What is JPA?	A specification (Jakarta Persistence API): interfaces only, no runnable code.
+What is Hibernate?	The JPA implementation: maps objects <-> rows and generates SQL.
+What is the JDBC driver's job?	Speaks the database wire protocol over TCP (connects Java to the DB engine).
+In Spring Boot, what does spring-boot-starter-data-jpa include - and what does it not include?	Includes JPA spec + Hibernate; deliberately includes no database driver.
+What common error happens when you forget to add a JDBC driver?	"Failed to determine a suitable driver class".
+What is the key benefit of the spec/implementation split (JPA vs Hibernate)?	You can swap implementations (Hibernate vs EclipseLink) or databases (Postgres vs MySQL) without rewriting business logic.
+In a layered architecture, what is the rule that makes layering valuable?	Each layer knows the layer below it, and nothing about the layer above.
+What is the main payoff of strict layering?	Each layer has one reason to change (swap DB -> repository changes; swap REST->gRPC -> controller changes).
+Why is "a service returning ResponseEntity" considered a design flaw?	It leaks HTTP concerns into the domain, so the service can't be reused from non-HTTP contexts (jobs/CLI).
+Why is "a controller containing a query string" bad?	It leaks SQL/persistence concerns upward into the web layer.
+What are the layers in the typical Spring stack (top to bottom)?	Controller -> Service -> Repository -> Database.
+What is an entity in this architecture?	Not a layer; it's data that travels through layers.
+Spring vs Python mapping: @RestController corresponds to what?	A Flask/FastAPI route handler (the @app.route function).
+Spring vs Python mapping: @Service corresponds to what?	A services.py-style business layer module/function.
+Spring vs Python mapping: JpaRepository corresponds to what?	SQLAlchemy session queries.
+Spring vs Python mapping: @Entity corresponds to what?	A SQLAlchemy model.
+Which packaging style is preferred here: package-by-feature or package-by-layer?	Package-by-feature.
+Why does package-by-feature help enforce architecture?	Repositories can be package-private, so other features physically can't bypass services; the compiler enforces boundaries.
+Validation classification question: "Can I decide this without querying the database?" -> implies what?	If yes: input validation (controller). If no: business rule (service, may require DB).
+What is input validation?	Checks if data is well-formed; no DB needed; enforced in controller with @Valid.
+What is a business rule?	Checks if action is allowed given current state; usually needs DB; enforced in service layer.
+Example: email = "notanemail" is input validation or business rule?	Input validation (controller; e.g., @Email).
+Example: name = "" is input validation or business rule?	Input validation (controller; e.g., @NotBlank).
+Example: dob in year 2400 is input validation or business rule?	Input validation (controller; e.g., @Past).
+Example: "patient with that email already exists" is input validation or business rule?	Business rule (service + database).
+Example: ward="ICU" but no such ward is input validation or business rule?	Business rule (service).
+@NotNull rejects which values?	Rejects null only; does not reject "" or "   ".
+@NotEmpty rejects which values?	Rejects null and ""; does not reject "   ".
+@NotBlank rejects which values?	Rejects null, "", and "   ".
+Why is SQL NOT NULL not enough for human-entered text?	NOT NULL allows empty string ""; it only rejects null.
+When do Bean Validation annotations actually run?	Only when @Valid is applied (e.g., on the @RequestBody parameter); otherwise annotations are decorative.
+What does "Location != enforcement point" mean in validation?	Constraints may be declared on DTO/entity, but enforcement happens only where @Valid triggers validation (usually controller boundary).
+What race condition makes service-layer uniqueness checks insufficient?	TOCTOU (time-of-check to time-of-use): two requests both pass check then both insert.
+What is the only reliable way to guarantee uniqueness under concurrency?	A database UNIQUE constraint (DB serializes writes).
+Why still do a service-level duplicate check if UNIQUE exists?	Defense in depth: service returns friendly 409 instead of raw DataIntegrityViolationException.
+What is Hibernate responsible for creating/managing vs NOT creating?	It manages tables/schema inside a database; it does not create the database itself.
+What does spring.jpa.hibernate.ddl-auto=none do?	Hibernate touches nothing.
+What does ddl-auto=validate do?	Compares entities to schema and fails startup on mismatch.
+What does ddl-auto=update do?	Adds tables/columns to match entities; never removes.
+What does ddl-auto=create do?	Drops and recreates schema on startup (data loss).
+What does ddl-auto=create-drop do?	Like create, plus drops schema on shutdown.
+Recommended ddl-auto setting in dev vs prod?	Dev: update. Prod: validate + migration tool.
+Why is ddl-auto=update dangerous in production?	No drops/narrowing, implicit unreviewed DDL, structure-only (not data migrations), no versioning/rollback.
+What tools replace ddl-auto=update in production?	Flyway or Liquibase (versioned SQL migrations).
+In the "two servers, two protocols" diagram, what ports are typical?	Spring Boot HTTP on :8080; PostgreSQL wire protocol on :5432.
+What does jdbc:postgresql://... signify?	It selects the PostgreSQL JDBC driver and uses the Postgres wire protocol.
+What is the shape of a JDBC URL?	jdbc:<vendor>://<host>:<port>/<database>
+Given spring.datasource.url=jdbc:postgresql://localhost:5432/vitals, what is host/port/db?	host=localhost, port=5432, database=vitals.
+What is application.properties, conceptually?	A file in the repo read by Spring at startup.
+What is "the environment" (OS environment variables)?	In-memory key-value pairs attached to a process and inherited by child processes.
+Why is spring.datasource.password=${DB_PASSWORD} safe to commit?	It's a reference; the secret value lives in the OS environment, not in the file.
+Spring Environment precedence: which wins highest?	Command-line args.
+Spring Environment precedence: which is #2?	OS environment variables.
+Spring Environment precedence: which overrides base application.properties?	application-{profile}.properties and OS env vars override it (OS env vars are higher than files).
+What is "relaxed binding" example for datasource password?	SPRING_DATASOURCE_PASSWORD maps to spring.datasource.password automatically.
+Why is committing a secret once still bad even if you remove it later?	Git history is permanent; the secret remains in prior commits/clones; requires history rewrite + credential rotation.
+What does "Externalize secrets, not configuration" mean?	Keep harmful-to-disclose values (secrets) out of repo; keep non-secret config (host/port/db/user) visible to document requirements.
+Why should you avoid AWS root account keys?	They can't be properly scoped/limited; use least-privilege IAM user/role instead.
+Why prefer ${DB_PASSWORD} with no default over ${DB_PASSWORD:changeme}?	Fail fast: missing secret stops startup immediately; defaults can hide misconfig and fail later confusingly.
+What does "fail fast" mean in DB config context?	Detect bad/missing credentials at startup (e.g., open a connection early) rather than at first request.
+Maven dependency scope: compile means what?	On classpath for compile, test, and production.
+Maven dependency scope: runtime means what?	Needed when running, not compiling (e.g., JDBC drivers).
+Maven dependency scope: test means what?	Tests only; cannot reach production runtime.
+Why is "H2 is not a cache"?	H2 is a substitute database engine; a cache sits in front of a DB holding hot data (e.g., Redis).
+What is the main risk of using H2 in tests with Postgres in production?	Dialect drift: tests pass on H2 but break on Postgres.
+What is the mature solution to test against real Postgres without permanent setup?	Testcontainers (real Postgres in Docker per test run, disposable).
+Why does removing H2 from the classpath make misconfiguration easier to detect?	It prevents silently falling back to an in-memory DB; startup fails loudly if datasource is wrong.
+What is the Maven wrapper (mvnw) for?	Downloads/runs a pinned Maven version so everyone builds with the same Maven without installing it.
+Spring Boot 4 renamed which starter (from Boot 3 tutorials)?	spring-boot-starter-web -> spring-boot-starter-webmvc
+Spring Boot 4 renamed which test starters?	spring-boot-starter-test -> -webmvc-test, -data-jpa-test, -validation-test
+In old material, what package rename should you expect?	javax.* -> jakarta.*
+Java package naming rule vs Maven artifactId rule?	Packages: lowercase identifiers, no hyphens; artifactId: kebab-case allowed.
+Why must filename match public class name?	The Java compiler requires it.
+What does <java.version>21</java.version> control?	What you compile/target to.
+What does JAVA_HOME control?	Which JDK Maven actually uses.
+Why can compilation fail if JAVA_HOME is older than target version?	A compiler can't target a version newer than itself (e.g., JDK 17 can't --release 21).
+Why might changing an environment variable not affect your current terminal?	Processes snapshot env at launch; you must restart the parent app (e.g., VSCode) to propagate.
+PowerShell syntax to set an env var for the current session?	$env:NAME = "x"
+Bash syntax to set an env var for the current session?	export NAME='x'
+PowerShell syntax to run Maven wrapper?	.\mvnw
+Bash syntax to run Maven wrapper?	./mvnw
+Windows PowerShell command to persist a user env var?	[Environment]::SetEnvironmentVariable("NAME","x","User")
+How should you read stack traces for root cause?	Bottom-up: the last "Caused by:" is the root.
+Why is "Unable to determine Dialect" often a red herring?	Hibernate can't detect dialect because it failed to connect to the database.
+Debugging principle: "Isolate the variable" example technique?	Test the same credentials with a different client (psql) to distinguish bad secret vs bad environment/config.
+What does a changed error message indicate during debugging?	Information/progress; read exactly what changed.
+Postgres driver fallback: if username isn't supplied, what may it use?	The OS user account.
+Why can Spring config typos be hard to detect?	Spring may silently ignore unknown property keys (no error).
+How do you identify what process is listening on port 8080 on Windows?	Get-NetTCPConnection -LocalPort 8080 -State Listen, then inspect process command line via Win32_Process.
+What do SQLSTATE class codes represent (example)?	Standardized DB error categories; class 28 = invalid authorization.
+What is SQLSTATE 28P01 specifically?	Invalid password.
+What is OSIV (Open Session In View)?	Keeps Hibernate session open for entire HTTP request including JSON serialization.
+OSIV "for" argument?	Lazy relationships can load during serialization; avoids LazyInitializationException.
+OSIV "against" arguments (give 2-3)?	Breaks layering; causes N+1 queries; holds DB connection for whole request; hides bugs until refactor.
+What does setting spring.jpa.open-in-view=false do?	Makes lazy access outside transaction fail immediately at boundary (forces explicit loading decisions).
+What command creates the database (since Hibernate won't)?	psql -U postgres -c "CREATE DATABASE vitals;"
+What does a "healthy startup log" line showing PgConnection prove?	You connected to real Postgres (not an auto-configured fallback like H2).
+Why are nested .gitignore files preferred over one root file?	Each applies to its own subtree, so rules travel with the thing they describe and survive folder renames.
+Why put backend/ and frontend/ as siblings rather than backend at the repo root?	CI can path-filter (paths: ['backend/**']); with backend at root there's no clean way to express "did the backend change?".
