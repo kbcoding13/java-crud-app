@@ -3,13 +3,28 @@ package com.kbcoding.vitals.patient;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
+import java.util.Objects;
+
+
+
 
 @Entity
-@Table(name = "patients", uniqueConstraints = @UniqueConstraint
-    (name = "uk_patients_nhi", columnNames = "nhi")
-)
+@Table(name = "patients", 
+    uniqueConstraints = @UniqueConstraint(name = "uk_patients_nhi", columnNames = "nhi"))
 
 public class Patient {
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Patient other)) return false;
+        return nhi != null && nhi.equals(other.nhi);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(nhi);
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "patient_seq")
@@ -20,7 +35,7 @@ public class Patient {
     @Column(nullable = false, unique = false, length = 50)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 7)
+    @Column(nullable = false, length = 7)
     @NotBlank
     @Pattern(regexp = "[A-Z]{3}[0-9]{4}")
     private String nhi;
