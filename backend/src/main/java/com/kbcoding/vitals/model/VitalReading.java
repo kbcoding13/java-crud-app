@@ -43,7 +43,7 @@ public class VitalReading {
     @DecimalMax("45.0")
     @Column(nullable = false)
     @NotNull
-=    private Double temperatureCelsius;
+    private Double temperatureCelsius;
 
     @PastOrPresent
     @Column(nullable = false)
