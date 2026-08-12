@@ -2,15 +2,12 @@ package com.kbcoding.vitals.model;
 
 import java.time.LocalDateTime;
 
-import org.hibernate.annotations.Check;
-
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
 @Table(name = "vital_readings")
 @Entity
 public class VitalReading {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vital_reading_seq")
